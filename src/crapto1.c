@@ -446,11 +446,14 @@ check_pfx_parity(uint32_t prefix, uint32_t rresp, uint8_t parities[8][8],
     nr = ks1 ^(prefix | c << 5);
     rr = ks2 ^ rresp;
 
+#if 0
     good &= parity(nr & 0x000000ff) ^ parities[c][3] ^ BIT(ks2, 24);
     good &= parity(rr & 0xff000000) ^ parities[c][4] ^ BIT(ks2, 16);
     good &= parity(rr & 0x00ff0000) ^ parities[c][5] ^ BIT(ks2,  8);
     good &= parity(rr & 0x0000ff00) ^ parities[c][6] ^ BIT(ks2,  0);
     good &= parity(rr & 0x000000ff) ^ parities[c][7] ^ ks3;
+#endif
+
   }
 
   return sl + good;
@@ -468,7 +471,7 @@ check_pfx_parity(uint32_t prefix, uint32_t rresp, uint8_t parities[8][8],
  */
 struct Crypto1State *
 lfsr_common_prefix(uint32_t pfx, uint32_t rr, uint8_t ks[8], uint8_t par[8][8]) {
-  struct Crypto1State *statelist, *s;
+  struct Crypto1State *statelist, *s, *end_s;
   uint32_t *odd, *even, *o, *e, top;
 
   odd = lfsr_prefix_ks(ks, 1);
@@ -481,6 +484,7 @@ lfsr_common_prefix(uint32_t pfx, uint32_t rr, uint8_t ks[8], uint8_t par[8][8]) 
     free(statelist);
     return 0;
   }
+  end_s = &s[((1<<20)-1)];
 
   for (o = odd; *o + 1; ++o)
     for (e = even; *e + 1; ++e)
@@ -488,8 +492,12 @@ lfsr_common_prefix(uint32_t pfx, uint32_t rr, uint8_t ks[8], uint8_t par[8][8]) 
         *o += 1 << 21;
         *e += (!(top & 7) + 1) << 21;
         s = check_pfx_parity(pfx, rr, par, *o, *e, s);
+
+		if (s == end_s)
+			goto exit;
       }
 
+exit:
   s->odd = s->even = 0;
 
   free(odd);
